@@ -1,0 +1,4 @@
+.env*
+.pub*
+node_modules/
+seed.js

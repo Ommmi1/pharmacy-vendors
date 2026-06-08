@@ -1,0 +1,200 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height: var(--topbar-h);
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+}
+.brandMark {
+  width: 32px; height: 32px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.brandName {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.2px;
+  color: var(--text);
+}
+.brandPlan {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+
+/* ── NAV ── */
+.nav {
+  display: flex;
+  gap: 2px;
+}
+.navItem {
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  text-decoration: none;
+  transition: all .15s;
+  border: 1px solid transparent;
+}
+.navItem:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.navActive {
+  background: var(--bg3);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* ── USER MENU ── */
+.right { position: relative; }
+
+.userBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  cursor: pointer;
+  transition: border-color .15s;
+  color: var(--text);
+  font-family: var(--font);
+}
+.userBtn:hover { border-color: var(--border2); }
+
+.avatar {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.userName {
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chevron { font-size: 10px; color: var(--text3); }
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  min-width: 210px;
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  animation: card-in .15s cubic-bezier(.16,1,.3,1);
+}
+.dropdownHeader {
+  padding: 8px 10px 4px;
+  font-size: 12px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+.dropdownDivider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .1s;
+  text-decoration: none;
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: var(--font);
+  text-align: left;
+}
+.dropdownItem:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
+.danger { color: var(--red) !important; }
+.danger:hover { background: var(--red-bg) !important; }
+
+/* ── MAIN ── */
+.main {
+  flex: 1;
+  padding: 32px 28px;
+  max-width: 1320px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── MOBILE NAV ── */
+.mobileNav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bg1);
+  border-top: 1px solid var(--border);
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  z-index: 100;
+  gap: 2px;
+}
+.mobileNavItem {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-align: center;
+  text-decoration: none;
+  transition: all .15s;
+}
+.mobileNavItem:hover { color: var(--text2); text-decoration: none; }
+.mobileNavActive { background: var(--bg3); color: var(--accent); }
+
+@media (max-width: 768px) {
+  .nav { display: none; }
+  .main { padding: 16px; padding-bottom: calc(72px + 16px); }
+  .topbar { padding: 0 16px; }
+  .mobileNav { display: flex; }
+}
