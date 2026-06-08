@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
 import { getAuthUser, unauthorized, handleError } from '@/lib/auth'
 
 // Next.js default body size is 4mb — increase for large catalogs
@@ -64,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let inserted = 0
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH)
-      const { error } = await supabaseAdmin.from('medicines').insert(batch)
+      const { error } = await db.from('medicines').insert(batch)
       if (error) return res.status(400).json({ error: error.message })
       inserted += batch.length
     }

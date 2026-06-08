@@ -23,7 +23,7 @@ export function withAuth(options: Options = {}): GetServerSideProps {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get:    (n) => ctx.req.cookies[n],
+          get:    (n: string) => ctx.req.cookies[n],
           set:    () => {},
           remove: () => {},
         },
@@ -43,11 +43,12 @@ export function withAuth(options: Options = {}): GetServerSideProps {
 
     // Fetch profile server-side for SSR initial render
     const { supabaseAdmin } = await import('./supabase/server')
-    const { data: profile } = await supabaseAdmin
+    const db = supabaseAdmin as any
+    const { data: profile } = await db
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single()
+      .single() as { data: import('./supabase/types').Profile | null }
 
     if (requireOnboarded && (!profile || !profile.onboarded)) {
       return { redirect: { destination: '/onboarding', permanent: false } }

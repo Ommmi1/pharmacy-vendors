@@ -336,14 +336,15 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (n) => ctx.req.cookies[n], set: () => {}, remove: () => {} } }
+    { cookies: { get: (n: string) => ctx.req.cookies[n], set: () => {}, remove: () => {} } }
   )
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { redirect: { destination: '/login', permanent: false } }
 
   const { supabaseAdmin } = await import('@/lib/supabase/server')
-  const { data: profile } = await supabaseAdmin
-    .from('profiles').select('*').eq('id', session.user.id).single()
+  const db = supabaseAdmin as any
+  const { data: profile } = await db
+    .from('profiles').select('*').eq('id', session.user.id).single() as { data: import('@/lib/supabase/types').Profile | null }
 
   if (profile?.onboarded) return { redirect: { destination: '/dashboard', permanent: false } }
 

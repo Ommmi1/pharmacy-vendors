@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
 import { getAuthUser, unauthorized, handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await db
         .from('medicines')
         .select('*')
         .eq('dist_id', user.id)
@@ -33,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await db
         .from('medicines')
         .insert({
           dist_id: user.id,

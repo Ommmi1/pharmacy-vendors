@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
 import { getAuthUser, unauthorized, handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,16 +14,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'DELETE') {
     try {
       // Verify ownership before deleting
-      const { data: med } = await supabaseAdmin
-        .from('medicines')
-        .select('id, dist_id')
-        .eq('id', id)
-        .single()
-
+      const { data: med } = await db
+      .from('medicines')
+      .select('id, dist_id')
+      .eq('id', id)
+      .single() as { data: { id: string; dist_id: string } | null }
       if (!med) return res.status(404).json({ error: 'Medicine not found' })
       if (med.dist_id !== user.id) return res.status(403).json({ error: 'Forbidden' })
 
-      const { error } = await supabaseAdmin.from('medicines').delete().eq('id', id)
+      const { error } = await db.from('medicines').delete().eq('id', id)
       if (error) return res.status(400).json({ error: error.message })
 
       return res.status(200).json({ deleted: true })
@@ -32,12 +33,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PATCH') {
     try {
-      const { data: med } = await supabaseAdmin
-        .from('medicines')
-        .select('id, dist_id')
-        .eq('id', id)
-        .single()
-
+       const { data: med } = await db
+  .from('medicines')
+  .select('id, dist_id')
+  .eq('id', id)
+  .single() as { data: { id: string; dist_id: string } | null }
       if (!med) return res.status(404).json({ error: 'Medicine not found' })
       if (med.dist_id !== user.id) return res.status(403).json({ error: 'Forbidden' })
 
@@ -51,13 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (bonus   !== undefined) updates.bonus   = bonus
       if (stock   !== undefined) updates.stock   = Number(stock)
 
-      const { data, error } = await supabaseAdmin
-        .from('medicines')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-
+      const { data, error } = await (db as any)
+  .from('medicines')
+  .update(updates)
+  .eq('id', id)
+  .select()
+  .single()
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json(data)
     } catch (err) {

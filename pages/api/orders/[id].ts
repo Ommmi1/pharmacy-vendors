@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
 import { getAuthUser, unauthorized, handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -11,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     try {
-      const { data: order, error: oErr } = await supabaseAdmin
+      const { data: order, error: oErr } = await db
         .from('orders')
         .select('*')
         .eq('id', id)
@@ -20,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (oErr || !order) return res.status(404).json({ error: 'Order not found' })
 
-      const { data: items, error: iErr } = await supabaseAdmin
+      const { data: items, error: iErr } = await db
         .from('order_items')
         .select('*')
         .eq('order_id', id)
@@ -43,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       // Verify ownership
-      const { data: order } = await supabaseAdmin
+      const { data: order } = await db
         .from('orders')
         .select('id, dist_id')
         .eq('id', id)
@@ -52,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!order) return res.status(404).json({ error: 'Order not found' })
       if (order.dist_id !== user.id) return res.status(403).json({ error: 'Forbidden' })
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await db
         .from('orders')
         .update({ status })
         .eq('id', id)

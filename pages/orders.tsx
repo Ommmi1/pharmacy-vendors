@@ -111,9 +111,9 @@ function OrdersPage({ profile, email }: Props) {
     doc.setFillColor(8, 12, 18)
     doc.rect(0, 0, 210, 36, 'F')
     doc.setTextColor(0, 229, 160)
-    doc.setFontSize(15); doc.setFont(undefined as unknown as string, 'bold')
+    doc.setFontSize(15); doc.setFont('helvetica', 'bold')
     doc.text('MediOrder Pro', 14, 13)
-    doc.setTextColor(160, 175, 200); doc.setFontSize(9); doc.setFont(undefined as unknown as string, 'normal')
+    doc.setTextColor(160, 175, 200); doc.setFontSize(9); doc.setFont('helvetica', 'normal')
     doc.text(`Distributor: ${profile.biz_name || '—'}`, 14, 21)
     doc.text(`Pharmacy: ${detailOrder.pharmacy_name || '—'}   ·   Date: ${date}`, 14, 28)
 
@@ -139,7 +139,7 @@ function OrdersPage({ profile, email }: Props) {
       alternateRowStyles: { fillColor: [13,18,30] },
     })
 
-    const pages = doc.internal.getNumberOfPages()
+    const pages = (doc.internal as any).getNumberOfPages()
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i)
       doc.setFontSize(8); doc.setTextColor(80, 90, 110)

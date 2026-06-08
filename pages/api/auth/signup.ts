@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
 import { handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -16,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Create the auth user
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    const { data, error } = await db.auth.admin.createUser({
       email,
       password,
       email_confirm: false, // sends verification email
@@ -26,10 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (error) return res.status(400).json({ error: error.message })
 
     // Create the profile row immediately
-    await supabaseAdmin.from('profiles').insert({
-      id: data.user.id,
-      onboarded: false,
-    })
+    await db.from('profiles').insert([{
+    id: data.user.id,
+    onboarded: false,
+    }] as any)
 
     return res.status(201).json({ message: 'Account created. Check your email to verify.' })
   } catch (err) {

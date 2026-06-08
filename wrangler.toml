@@ -1,0 +1,9 @@
+# Cloudflare Pages configuration
+# Place this file in your project root
+
+[build]
+command = "npm run build"
+destination = ".next"
+
+[build.environment]
+NODE_VERSION = "18"

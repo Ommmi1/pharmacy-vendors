@@ -87,9 +87,9 @@ function PortalPage({ distributor, medicines }: Props) {
       doc.setFillColor(8,12,18)
       doc.rect(0,0,210,36,'F')
       doc.setTextColor(0,229,160)
-      doc.setFontSize(15); doc.setFont(undefined,'bold')
+      doc.setFontSize(15); doc.setFont('helvetica','bold')
       doc.text('MediOrder Pro', 14, 13)
-      doc.setTextColor(160,175,200); doc.setFontSize(9); doc.setFont(undefined,'normal')
+      doc.setTextColor(160,175,200); doc.setFontSize(9); doc.setFont('helvetica','normal')
       doc.text(`Distributor: ${distributor.bizName || ''}`, 14, 21)
       doc.text(`Pharmacy: ${pharmacyName || 'N/A'}   ·   Date: ${date}`, 14, 28)
       ;(doc as any).autoTable({
@@ -287,16 +287,16 @@ function PortalPage({ distributor, medicines }: Props) {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const slug = ctx.params?.slug as string
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await (supabaseAdmin as any)
     .from('profiles')
     .select('id, biz_name, phone, city, address, whatsapp')
     .eq('slug', slug)
     .eq('onboarded', true)
-    .single()
+    .single() as { data: any }
 
   if (!profile) return { notFound: true }
 
-  const { data: medicines } = await supabaseAdmin
+  const { data: medicines } = await (supabaseAdmin as any)
     .from('medicines')
     .select('id, code, name, company, tp, disc, net, bonus, stock')
     .eq('dist_id', profile.id)

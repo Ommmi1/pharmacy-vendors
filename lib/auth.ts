@@ -14,9 +14,9 @@ export async function getAuthUser(req: NextApiRequest, res: NextApiResponse) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name)               { return req.cookies[name] },
-        set(name, value, opts)  { res.setHeader('Set-Cookie', serialize(name, value, opts)) },
-        remove(name, opts)      { res.setHeader('Set-Cookie', serialize(name, '', opts)) },
+        get(name: string)                                    { return req.cookies[name] },
+        set(name: string, value: string, opts: Record<string, unknown>)  { res.setHeader('Set-Cookie', serialize(name, value, opts)) },
+        remove(name: string, opts: Record<string, unknown>)              { res.setHeader('Set-Cookie', serialize(name, '', opts)) },
       },
     }
   )

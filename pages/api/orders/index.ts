@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
 import { getAuthUser, handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -9,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await db
         .from('orders')
         .select('*')
         .eq('dist_id', user.id)
@@ -34,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Verify the distributor exists and is onboarded
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await db
       .from('profiles')
       .select('id, onboarded')
       .eq('id', dist_id)
@@ -47,19 +49,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify all medicine IDs belong to this distributor (prevents order injection)
     const medIds = items.map((i: { medicine_id: string }) => i.medicine_id).filter(Boolean)
     if (medIds.length > 0) {
-      const { data: meds } = await supabaseAdmin
+      const { data: meds } = await db
         .from('medicines')
         .select('id, dist_id, name, code, tp, disc, net')
         .in('id', medIds)
 
-      const validIds = new Set((meds || []).filter(m => m.dist_id === dist_id).map(m => m.id))
+      const validIds = new Set((meds || []).filter((m: any) => m.dist_id === dist_id).map((m: any) => m.id))
       const invalid = medIds.filter((id: string) => !validIds.has(id))
       if (invalid.length > 0) {
         return res.status(400).json({ error: 'Invalid medicine IDs in order.' })
       }
 
       // Use server-side prices — never trust client-sent prices
-      const medMap = new Map((meds || []).map(m => [m.id, m]))
+      const medMap = new Map<string, any>((meds || []).map((m: any) => [m.id, m]))
       let total_before = 0
       let total_after  = 0
 
@@ -87,7 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       try {
-        const { data: order, error: oErr } = await supabaseAdmin
+        const { data: order, error: oErr } = await db
           .from('orders')
           .insert({
             dist_id,
@@ -103,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (oErr) return res.status(400).json({ error: oErr.message })
 
         const itemRows = validatedItems.map(i => ({ ...i, order_id: order.id }))
-        const { error: iErr } = await supabaseAdmin.from('order_items').insert(itemRows)
+        const { error: iErr } = await db.from('order_items').insert(itemRows)
         if (iErr) return res.status(400).json({ error: iErr.message })
 
         return res.status(201).json({ orderId: order.id, total_after, item_count: validatedItems.length })
