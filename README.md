@@ -11,7 +11,7 @@ Browser (Next.js)
 Next.js API Routes  ← credentials live here (server-side only)
     │  Service Role Key (never reaches browser)
     ▼
-Supabase (Postgres + Auth)
+Supabase (Postgres + Auth) Right
 ```
 
 **The browser never holds database credentials.** The Supabase `service_role` key exists only in environment variables on the server. The browser only holds a session cookie.
