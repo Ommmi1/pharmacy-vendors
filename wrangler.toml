@@ -6,3 +6,6 @@ pages_build_output_dir = ".vercel/output/static"
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://xgcuzrrkwpthiqfcfwwd.supabase.co"
 NEXT_PUBLIC_APP_URL = "https://med.albunyad.cloud"
+
+[build.environment]
+NODE_VERSION = "20"
