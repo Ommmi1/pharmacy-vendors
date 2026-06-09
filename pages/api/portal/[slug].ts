@@ -1,50 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-import { handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const db = getSupabaseAdmin() as any
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
-
-  const { slug } = req.query
-  if (!slug || typeof slug !== 'string') return res.status(400).json({ error: 'Invalid slug' })
-
+  const { slug } = req.query as { slug: string }
+  const db = getSupabaseAdmin() as any
   try {
-    const { data: profile, error: pErr } = await db
-      .from('profiles')
-      .select('id, biz_name, phone, city, address, whatsapp')
-      .eq('slug', slug)
-      .eq('onboarded', true)
-      .single()
-
-    if (pErr || !profile) {
-      return res.status(404).json({ error: 'Distributor not found' })
-    }
-
-    const { data: medicines, error: mErr } = await db
-      .from('medicines')
-      .select('id, code, name, company, tp, disc, net, bonus, stock')
-      .eq('dist_id', profile.id)
-      .order('company')
-      .order('name')
-
-    if (mErr) return res.status(400).json({ error: mErr.message })
-
-    // Cache for 60 seconds on CDN — medicines don't change that fast
+    const { data: dist, error: dErr } = await db
+      .from('distributors').select('*').eq('slug', slug).eq('disabled', false).single()
+    if (dErr || !dist) return res.status(404).json({ error: 'Distributor not found' })
+    const { data: meds } = await db
+      .from('medicines').select('id,code,name,company,mrp,tp,disc,net,bonus,stock')
+      .eq('dist_id', dist.id).order('company').order('name')
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
-
-    return res.status(200).json({
-      distributor: {
-        id:      profile.id,
-        bizName: profile.biz_name,
-        phone:   profile.phone,
-        city:    profile.city,
-        address: profile.address,
-        whatsapp:profile.whatsapp,
-      },
-      medicines: medicines || [],
-    })
-  } catch (err) {
-    return handleError(res, err)
+    return res.status(200).json({ distributor: dist, medicines: meds || [] })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Error'
+    return res.status(500).json({ error: msg })
   }
 }

@@ -1,210 +1,242 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Head from 'next/head'
-import { GetServerSideProps } from 'next'
-import { getSupabaseAdmin } from '@/lib/supabase/server'
-import { api } from '@/lib/api'
 import { fmtNum } from '@/lib/format'
-import { ToastProvider, useToast } from '@/components/ui/Toast'
-import Button from '@/components/ui/Button'
-import Badge from '@/components/ui/Badge'
-import type { Medicine } from '@/lib/supabase/types'
-import styles from '@/styles/Portal.module.css'
+import s from '@/styles/Portal.module.css'
 
-interface Distributor {
-  id: string; bizName: string | null; phone: string | null
-  city: string | null; whatsapp: string | null
-}
-interface Props { distributor: Distributor; medicines: Medicine[] }
+interface Distributor { id:string; name:string; phone:string|null; whatsapp:string|null; address:string|null; city:string|null }
+interface Medicine { id:string; code:string|null; name:string; company:string|null; mrp:number; tp:number; disc:number; net:number; bonus:string|null; stock:number }
 
-function PortalPage({ distributor, medicines }: Props) {
-  const toast = useToast()
-  const [qty,          setQty]          = useState<Record<string, number>>({})
-  const [pharmacyName, setPharmacyName] = useState('')
-  const [search,       setSearch]       = useState('')
-  const [submitting,   setSubmitting]   = useState(false)
-  const [submitted,    setSubmitted]    = useState(false)
+export default function Portal() {
+  const [dist,     setDist]     = useState<Distributor|null>(null)
+  const [meds,     setMeds]     = useState<Medicine[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [search,   setSearch]   = useState('')
+  const [qty,      setQty]      = useState<Record<string, number>>({})
+  const [pharmName,setPharmName]= useState('')
 
-  // Group medicines by company
+  useEffect(() => {
+    const slug = window.location.pathname.split('/portal/')[1]
+    if (!slug) { setNotFound(true); setLoading(false); return }
+    fetch(`/api/portal/${slug}`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { setDist(d.distributor); setMeds(d.medicines) })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [])
+
   const grouped = useMemo(() => {
-    const filtered = search
-      ? medicines.filter(m =>
+    const list = search
+      ? meds.filter(m =>
           m.name.toLowerCase().includes(search.toLowerCase()) ||
-          (m.code || '').toLowerCase().includes(search.toLowerCase()) ||
-          (m.company || '').toLowerCase().includes(search.toLowerCase())
+          (m.code||'').toLowerCase().includes(search.toLowerCase()) ||
+          (m.company||'').toLowerCase().includes(search.toLowerCase())
         )
-      : medicines
-
-    return filtered.reduce<Record<string, Medicine[]>>((acc, m) => {
+      : meds
+    return list.reduce<Record<string, Medicine[]>>((acc, m) => {
       const co = m.company || 'Other'
       if (!acc[co]) acc[co] = []
       acc[co].push(m)
       return acc
     }, {})
-  }, [medicines, search])
+  }, [meds, search])
 
-  // Order summary
   const orderItems = useMemo(() =>
-    medicines
-      .filter(m => (qty[m.id] || 0) > 0)
-      .map(m => {
-        const q   = qty[m.id]
-        const net = m.net || m.tp * (1 - m.disc / 100)
-        return { ...m, qty: q, net, subtotal: net * q }
-      }),
-    [medicines, qty]
+    meds.filter(m => (qty[m.id]||0) > 0).map(m => ({
+      ...m, qty: qty[m.id],
+      subtotal: m.net * qty[m.id]
+    })),
+    [meds, qty]
   )
 
-  const totalBefore = orderItems.reduce((s, i) => s + i.tp  * i.qty, 0)
-  const totalAfter  = orderItems.reduce((s, i) => s + i.subtotal,     0)
+  const totalBefore = orderItems.reduce((s, i) => s + i.tp * i.qty, 0)
+  const totalAfter  = orderItems.reduce((s, i) => s + i.subtotal,   0)
   const saving      = totalBefore - totalAfter
 
-  async function submitOrder() {
-    if (!orderItems.length) return
-    setSubmitting(true)
-    try {
-      await api.post('/api/orders', {
-        dist_id: distributor.id,
-        pharmacy_name: pharmacyName || 'Anonymous',
-        items: orderItems.map(i => ({ medicine_id: i.id, qty: i.qty })),
-      })
-      setSubmitted(true)
-      setQty({})
-      toast('success', `Order placed! ${orderItems.length} items · Rs. ${fmtNum(totalAfter)}`)
-    } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to place order.')
-    } finally {
-      setSubmitting(false)
+  function clearOrder() { setQty({}) }
+
+  async function downloadPDF() {
+    const { jsPDF } = await import('jspdf')
+    await import('jspdf-autotable')
+    const doc  = new jsPDF('p', 'mm', 'a4') as any
+    const date = new Date().toLocaleDateString('en-PK')
+
+    // Header
+    doc.setFillColor(8,12,18)
+    doc.rect(0,0,210,38,'F')
+    doc.setTextColor(0,229,160)
+    doc.setFontSize(15); doc.setFont('helvetica','bold')
+    doc.text('MediOrder Pro', 14, 14)
+    doc.setTextColor(160,175,200); doc.setFontSize(9); doc.setFont('helvetica','normal')
+    doc.text(`Distributor: ${dist?.name || ''}`, 14, 22)
+    if (dist?.phone) doc.text(`Phone: ${dist.phone}`, 14, 28)
+    doc.text(`Pharmacy: ${pharmName || 'N/A'}   ·   Date: ${date}`, 110, 22)
+
+    doc.autoTable({
+      startY: 44,
+      head: [['Code','Medicine','Qty','MRP','T.P','Disc%','Net Price','Subtotal']],
+      body: orderItems.map(i => [
+        i.code||'—', i.name, i.qty,
+        `Rs.${fmtNum(i.mrp)}`,
+        `Rs.${fmtNum(i.tp)}`,
+        i.disc > 0 ? `${i.disc}%` : '—',
+        `Rs.${fmtNum(i.net)}`,
+        `Rs.${fmtNum(i.subtotal)}`,
+      ]),
+      foot: [
+        ['','',`${orderItems.length} items`,'','','','Before Disc:',`Rs.${fmtNum(totalBefore)}`],
+        ['','','','','','','Saving:',`Rs.${fmtNum(saving)}`],
+        ['','','','','','','Total Payable:',`Rs.${fmtNum(totalAfter)}`],
+      ],
+      headStyles:{ fillColor:[8,12,18], textColor:[0,229,160], fontStyle:'bold', fontSize:9 },
+      footStyles:{ fillColor:[13,18,30], fontStyle:'bold', textColor:[140,154,184] },
+      styles:{ fontSize:9, cellPadding:3 },
+      alternateRowStyles:{ fillColor:[13,18,30] },
+    })
+
+    // Footer
+    const pages = (doc.internal as any).getNumberOfPages()
+    for (let i=1;i<=pages;i++) {
+      doc.setPage(i)
+      doc.setFontSize(8); doc.setTextColor(80,90,110)
+      doc.text(`MediOrder Pro · ${dist?.name||''} · Page ${i}/${pages}`, 14, doc.internal.pageSize.height - 8)
     }
+
+    doc.save(`Order_${(pharmName||'Order').replace(/\s+/g,'_')}_${date}.pdf`)
   }
 
-  function generatePDF() {
-    if (!orderItems.length) return
-    import('jspdf').then(({ jsPDF }) => {
-      // @ts-ignore
-      import('jspdf-autotable')
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const date = new Date().toLocaleDateString('en-PK')
-      doc.setFillColor(8,12,18)
-      doc.rect(0,0,210,36,'F')
-      doc.setTextColor(0,229,160)
-      doc.setFontSize(15); doc.setFont('helvetica','bold')
-      doc.text('MediOrder Pro', 14, 13)
-      doc.setTextColor(160,175,200); doc.setFontSize(9); doc.setFont('helvetica','normal')
-      doc.text(`Distributor: ${distributor.bizName || ''}`, 14, 21)
-      doc.text(`Pharmacy: ${pharmacyName || 'N/A'}   ·   Date: ${date}`, 14, 28)
-      ;(doc as any).autoTable({
-        startY: 42,
-        head: [['Code','Medicine','Qty','Disc%','T.P','Net','Subtotal']],
-        body: orderItems.map(i => [
-          i.code||'—', i.name, i.qty,
-          i.disc > 0 ? `${i.disc}%` : '—',
-          `Rs.${fmtNum(i.tp)}`, `Rs.${fmtNum(i.net)}`, `Rs.${fmtNum(i.subtotal)}`,
-        ]),
-        foot: [
-          ['','',`${orderItems.length} items`,'','Before:',`Rs.${fmtNum(totalBefore)}`,''],
-          ['','','','','Saving:',`Rs.${fmtNum(saving)}`,''],
-          ['','','','','Total:',`Rs.${fmtNum(totalAfter)}`,''],
-        ],
-        headStyles: { fillColor:[8,12,18], textColor:[0,229,160], fontStyle:'bold', fontSize:9 },
-        footStyles: { fillColor:[13,18,30], fontStyle:'bold', textColor:[140,154,184] },
-        styles: { fontSize:9, cellPadding:3.5 },
-        alternateRowStyles: { fillColor:[13,18,30] },
-      })
-      doc.save(`Order_${(pharmacyName||'Order').replace(/\s+/g,'_')}_${date}.pdf`)
-    })
+  function sendWhatsApp() {
+    if (!dist?.whatsapp) { alert('No WhatsApp number configured for this distributor.'); return }
+    const lines = [
+      `*Order from: ${pharmName || 'Pharmacy'}*`,
+      `*Distributor: ${dist.name}*`,
+      `*Date: ${new Date().toLocaleDateString('en-PK')}*`,
+      '',
+      ...orderItems.map((i, n) =>
+        `${n+1}. ${i.name}${i.code ? ` (${i.code})` : ''} — Qty: ${i.qty} × Rs.${fmtNum(i.net)} = Rs.${fmtNum(i.subtotal)}`
+      ),
+      '',
+      `Before Discount: Rs.${fmtNum(totalBefore)}`,
+      `Saving: Rs.${fmtNum(saving)}`,
+      `*Total Payable: Rs.${fmtNum(totalAfter)}*`,
+    ]
+    const text = encodeURIComponent(lines.join('\n'))
+    window.open(`https://wa.me/${dist.whatsapp}?text=${text}`, '_blank')
   }
+
+  if (loading) return (
+    <div className={s.loadScreen}>
+      <div className={s.loadMark}>💊</div>
+      <div className={s.loadBar}><div className={s.loadFill} /></div>
+    </div>
+  )
+
+  if (notFound) return (
+    <div className={s.notFound}>
+      <div style={{fontSize:48,marginBottom:16}}>🔍</div>
+      <h1 style={{fontFamily:'var(--display)',marginBottom:8}}>Distributor not found</h1>
+      <p style={{color:'var(--text3)',fontSize:14}}>This link may be incorrect or the distributor may not exist.</p>
+    </div>
+  )
 
   return (
     <>
-      <Head><title>{distributor.bizName || 'Pharma'} — Order Portal</title></Head>
-      <div className={styles.portal}>
+      <Head><title>{dist?.name} — Order Portal</title></Head>
+      <div className={s.portal}>
 
         {/* TOPBAR */}
-        <header className={styles.topbar}>
-          <div className={styles.topbarBrand}>
-            <div className={styles.topbarMark}>💊</div>
+        <header className={s.topbar}>
+          <div className={s.topLeft}>
+            <div className={s.topMark}>💊</div>
             <div>
-              <h1 className={styles.topbarName}>{distributor.bizName}</h1>
-              <p className={styles.topbarMeta}>
-                {[distributor.phone && `📞 ${distributor.phone}`, distributor.city].filter(Boolean).join(' · ')}
+              <h1 className={s.topName}>{dist?.name}</h1>
+              <p className={s.topMeta}>
+                {[dist?.phone&&`📞 ${dist.phone}`, dist?.city].filter(Boolean).join(' · ')}
               </p>
             </div>
           </div>
-          <div className={styles.topbarRight}>
+          <div className={s.topRight}>
             <input
-              className={styles.pharmInput}
+              className={s.pharmInput}
               type="text"
-              placeholder="Your pharmacy name (optional)"
-              value={pharmacyName}
-              onChange={e => setPharmacyName(e.target.value)}
+              placeholder="Your pharmacy name"
+              value={pharmName}
+              onChange={e => setPharmName(e.target.value)}
             />
-            <Button variant="outline" size="sm" onClick={generatePDF} disabled={!orderItems.length}>
-              ↓ PDF
-            </Button>
           </div>
         </header>
 
-        {/* SEARCH BAR */}
-        <div className={styles.searchBar}>
-          <div className={styles.searchWrap}>
-            <span className={styles.searchIcon}>🔍</span>
+        {/* SEARCH */}
+        <div className={s.searchBar}>
+          <div className={s.searchWrap}>
+            <span className={s.searchIcon}>🔍</span>
             <input
-              className={styles.searchInput}
+              className={s.searchInput}
               type="text"
-              placeholder="Search medicine name, code, company…"
+              placeholder="Search medicine, code, company…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            {search && <button className={styles.searchClear} onClick={() => setSearch('')}>✕</button>}
+            {search && <button className={s.searchClear} onClick={() => setSearch('')}>✕</button>}
           </div>
           {orderItems.length > 0 && (
-            <div className={styles.searchStats}>
-              <span className={styles.searchCount}>{orderItems.length} items</span>
-              <span className={styles.searchTotal}>Rs. {fmtNum(totalAfter)}</span>
+            <div className={s.orderQuickSummary}>
+              <span className={s.orderCount}>{orderItems.length} items</span>
+              <span className={s.orderTotal}>Rs. {fmtNum(totalAfter)}</span>
             </div>
           )}
         </div>
 
-        <div className={styles.body}>
+        <div className={s.body}>
           {/* CATALOG */}
-          <div className={styles.catalog}>
-            {Object.entries(grouped).length === 0 ? (
-              <div className={styles.empty}>
-                <div className={styles.emptyIcon}>🔍</div>
+          <div className={s.catalog}>
+            {Object.keys(grouped).length === 0 ? (
+              <div className={s.empty}>
+                <div>🔍</div>
                 <div>No medicines match your search</div>
               </div>
-            ) : Object.entries(grouped).map(([company, meds]) => (
+            ) : Object.entries(grouped).map(([company, items]) => (
               <div key={company}>
-                <div className={styles.companyHeader}>{company}</div>
-                <table className={styles.medTable}>
+                <div className={s.companyHeader}>{company}</div>
+                <table className={s.medTable}>
                   <thead>
                     <tr>
-                      <th>Code</th><th>Medicine</th><th>T.P</th>
-                      <th>Disc%</th><th>Net (Rs.)</th><th>Bonus</th><th>Qty</th>
+                      <th>Code</th><th>Medicine</th><th>MRP (Rs.)</th>
+                      <th>T.P (Rs.)</th><th>Disc%</th><th>Net (Rs.)</th><th>Bonus</th><th>Qty</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {meds.map(m => {
-                      const net = m.net || m.tp * (1 - m.disc / 100)
+                    {items.map(m => {
+                      const net = m.net || m.tp * (1 - m.disc/100)
+                      const hasQty = (qty[m.id]||0) > 0
                       return (
-                        <tr key={m.id} className={(qty[m.id] || 0) > 0 ? styles.rowActive : ''}>
-                          <td><span className={`${styles.code} mono`}>{m.code || '—'}</span></td>
-                          <td className={styles.medName}>{m.name}</td>
+                        <tr key={m.id} className={hasQty ? s.rowActive : ''}>
+                          <td><span className={s.code}>{m.code||'—'}</span></td>
+                          <td className={s.medName}>{m.name}</td>
+                          <td><span className="mono">{fmtNum(m.mrp)}</span></td>
                           <td><span className="mono">{fmtNum(m.tp)}</span></td>
-                          <td>{m.disc > 0 ? <Badge color="green">{m.disc}%</Badge> : <span className={styles.dash}>—</span>}</td>
-                          <td><span className={`${styles.net} mono`}>{fmtNum(net)}</span></td>
-                          <td>{m.bonus ? <Badge color="gold">{m.bonus}</Badge> : <span className={styles.dash}>—</span>}</td>
+                          <td>
+                            {m.disc > 0
+                              ? <span className={s.discBadge}>{m.disc}%</span>
+                              : <span className={s.dash}>—</span>}
+                          </td>
+                          <td><span className={s.netPrice}>{fmtNum(net)}</span></td>
+                          <td>
+                            {m.bonus
+                              ? <span className={s.bonusBadge}>{m.bonus}</span>
+                              : <span className={s.dash}>—</span>}
+                          </td>
                           <td>
                             <input
-                              className={styles.qtyInput}
-                              type="number"
-                              min="0"
-                              max="9999"
-                              placeholder="0"
+                              className={s.qtyInput}
+                              type="number" min="0" max="9999" placeholder="0"
                               value={qty[m.id] || ''}
                               onChange={e => {
                                 const v = parseInt(e.target.value) || 0
-                                setQty(prev => v > 0 ? { ...prev, [m.id]: v } : (() => { const n = { ...prev }; delete n[m.id]; return n })())
+                                setQty(prev => {
+                                  if (v <= 0) { const n = {...prev}; delete n[m.id]; return n }
+                                  return { ...prev, [m.id]: v }
+                                })
                               }}
                             />
                           </td>
@@ -217,106 +249,68 @@ function PortalPage({ distributor, medicines }: Props) {
             ))}
           </div>
 
-          {/* ORDER SUMMARY SIDEBAR */}
-          <aside className={styles.sidebar}>
-            <div className={styles.sidebarTitle}>Order Summary</div>
+          {/* SIDEBAR */}
+          <aside className={s.sidebar}>
+            <div className={s.sidebarTitle}>Order Summary</div>
 
             {orderItems.length === 0 ? (
-              <div className={styles.sidebarEmpty}>Enter quantities to build your order</div>
+              <div className={s.sidebarEmpty}>Enter quantities to build your order</div>
             ) : (
-              <div className={styles.sidebarItems}>
+              <div className={s.sidebarItems}>
                 {orderItems.map(i => (
-                  <div key={i.id} className={styles.sidebarItem}>
-                    <div className={styles.sidebarItemName} title={i.name}>{i.name}</div>
-                    <div className={styles.sidebarItemMeta}>
-                      ×{i.qty} = <span className={styles.sidebarItemAmt}>Rs. {fmtNum(i.subtotal)}</span>
+                  <div key={i.id} className={s.sidebarItem}>
+                    <div className={s.sidebarItemName}>{i.name}</div>
+                    <div className={s.sidebarItemMeta}>
+                      ×{i.qty} = <span className={s.sidebarAmt}>Rs.{fmtNum(i.subtotal)}</span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className={styles.sidebarTotals}>
-              <div className={styles.sidebarRow}>
+            <div className={s.totals}>
+              <div className={s.totalRow}>
                 <span>Before Discount</span>
-                <span className={`${styles.sidebarOrange} mono`}>Rs. {fmtNum(totalBefore)}</span>
+                <span className={`${s.totalOrange} mono`}>Rs.{fmtNum(totalBefore)}</span>
               </div>
-              <div className={styles.sidebarRow}>
+              <div className={s.totalRow}>
                 <span>You Save</span>
-                <span className={`${styles.sidebarGreen} mono`}>Rs. {fmtNum(saving)}</span>
+                <span className={`${s.totalGreen} mono`}>Rs.{fmtNum(saving)}</span>
               </div>
-              <div className={`${styles.sidebarRow} ${styles.sidebarTotal}`}>
+              <div className={`${s.totalRow} ${s.totalMain}`}>
                 <span>Total Payable</span>
-                <span className={`${styles.sidebarGreen} mono`}>Rs. {fmtNum(totalAfter)}</span>
+                <span className={`${s.totalGreen} mono`}>Rs.{fmtNum(totalAfter)}</span>
               </div>
             </div>
 
-            {submitted ? (
-              <div className={styles.successBanner}>
-                ✅ Order placed! The distributor will be in touch.
-              </div>
-            ) : (
-              <Button
-                variant="accent"
-                size="lg"
-                style={{ width: '100%', marginTop: '14px' }}
-                disabled={!orderItems.length || submitting}
-                loading={submitting}
-                onClick={submitOrder}
+            <div className={s.sidebarActions}>
+              <button
+                className={s.btnPDF}
+                onClick={downloadPDF}
+                disabled={!orderItems.length}
               >
-                Place Order
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              style={{ width: '100%', marginTop: '6px' }}
-              onClick={() => setQty({})}
-              disabled={!orderItems.length}
-            >
-              Clear All
-            </Button>
+                ↓ Download PDF
+              </button>
+              {dist?.whatsapp && (
+                <button
+                  className={s.btnWA}
+                  onClick={sendWhatsApp}
+                  disabled={!orderItems.length}
+                >
+                  💬 Send on WhatsApp
+                </button>
+              )}
+              <button
+                className={s.btnClear}
+                onClick={clearOrder}
+                disabled={!orderItems.length}
+              >
+                Clear All
+              </button>
+            </div>
           </aside>
         </div>
       </div>
     </>
   )
-}
-
-// Fetches distributor + medicines server-side — Supabase credentials never reach the browser
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const slug = ctx.params?.slug as string
-
-  const { data: profile } = await (getSupabaseAdmin() as any)
-    .from('profiles')
-    .select('id, biz_name, phone, city, address, whatsapp')
-    .eq('slug', slug)
-    .eq('onboarded', true)
-    .single() as { data: any }
-
-  if (!profile) return { notFound: true }
-
-  const { data: medicines } = await (getSupabaseAdmin() as any)
-    .from('medicines')
-    .select('id, code, name, company, tp, disc, net, bonus, stock')
-    .eq('dist_id', profile.id)
-    .order('company')
-    .order('name')
-
-  return {
-    props: {
-      distributor: {
-        id:      profile.id,
-        bizName: profile.biz_name,
-        phone:   profile.phone,
-        city:    profile.city,
-        whatsapp:profile.whatsapp,
-      },
-      medicines: medicines || [],
-    },
-  }
-}
-
-export default function Portal(props: Props) {
-  return <ToastProvider><PortalPage {...props} /></ToastProvider>
 }

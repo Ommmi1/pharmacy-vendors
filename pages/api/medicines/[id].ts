@@ -1,66 +1,37 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-import { getAuthUser, unauthorized, handleError } from '@/lib/auth'
+import { requireAdmin, handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const user = await requireAdmin(req, res)
+  if (!user) return
   const db = getSupabaseAdmin() as any
-  const user = await getAuthUser(req, res)
-  if (!user) return unauthorized(res)
-
-  const { id } = req.query
-  if (!id || typeof id !== 'string') return res.status(400).json({ error: 'Invalid ID' })
+  const { id } = req.query as { id: string }
 
   if (req.method === 'DELETE') {
     try {
-      // Verify ownership before deleting
-      const { data: med } = await db
-      .from('medicines')
-      .select('id, dist_id')
-      .eq('id', id)
-      .single() as { data: { id: string; dist_id: string } | null }
-      if (!med) return res.status(404).json({ error: 'Medicine not found' })
-      if (med.dist_id !== user.id) return res.status(403).json({ error: 'Forbidden' })
-
       const { error } = await db.from('medicines').delete().eq('id', id)
       if (error) return res.status(400).json({ error: error.message })
-
       return res.status(200).json({ deleted: true })
-    } catch (err) {
-      return handleError(res, err)
-    }
+    } catch (e) { return handleError(res, e) }
   }
 
   if (req.method === 'PATCH') {
+    const { code, name, company, mrp, tp, disc, bonus, stock } = req.body
+    const u: Record<string, unknown> = {}
+    if (code    !== undefined) u.code    = code
+    if (name    !== undefined) u.name    = name
+    if (company !== undefined) u.company = company
+    if (mrp     !== undefined) u.mrp     = parseFloat(mrp)
+    if (tp      !== undefined) u.tp      = parseFloat(tp)
+    if (disc    !== undefined) u.disc    = parseFloat(disc)
+    if (bonus   !== undefined) u.bonus   = bonus
+    if (stock   !== undefined) u.stock   = parseInt(stock)
     try {
-       const { data: med } = await db
-  .from('medicines')
-  .select('id, dist_id')
-  .eq('id', id)
-  .single() as { data: { id: string; dist_id: string } | null }
-      if (!med) return res.status(404).json({ error: 'Medicine not found' })
-      if (med.dist_id !== user.id) return res.status(403).json({ error: 'Forbidden' })
-
-      const { code, name, company, tp, disc, bonus, stock } = req.body
-      const updates: Record<string, unknown> = {}
-      if (code    !== undefined) updates.code    = code
-      if (name    !== undefined) updates.name    = name
-      if (company !== undefined) updates.company = company
-      if (tp      !== undefined) updates.tp      = Number(tp)
-      if (disc    !== undefined) updates.disc    = Number(disc)
-      if (bonus   !== undefined) updates.bonus   = bonus
-      if (stock   !== undefined) updates.stock   = Number(stock)
-
-      const { data, error } = await (db as any)
-  .from('medicines')
-  .update(updates)
-  .eq('id', id)
-  .select()
-  .single()
+      const { data, error } = await db.from('medicines').update(u).eq('id', id).select().single()
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json(data)
-    } catch (err) {
-      return handleError(res, err)
-    }
+    } catch (e) { return handleError(res, e) }
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
