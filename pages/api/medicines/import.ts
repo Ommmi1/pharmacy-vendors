@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { supabaseAdmin } from '@/lib/supabase/server'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabaseAdmin as any
+import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { getAuthUser, unauthorized, handleError } from '@/lib/auth'
 
 // Next.js default body size is 4mb — increase for large catalogs
@@ -18,6 +16,7 @@ interface MedicineRow {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const db = getSupabaseAdmin() as any
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const user = await getAuthUser(req, res)

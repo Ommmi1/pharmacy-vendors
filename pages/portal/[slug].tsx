@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import Head from 'next/head'
 import { GetServerSideProps } from 'next'
-import { supabaseAdmin } from '@/lib/supabase/server'
+import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { api } from '@/lib/api'
 import { fmtNum } from '@/lib/format'
 import { ToastProvider, useToast } from '@/components/ui/Toast'
@@ -287,7 +287,7 @@ function PortalPage({ distributor, medicines }: Props) {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const slug = ctx.params?.slug as string
 
-  const { data: profile } = await (supabaseAdmin as any)
+  const { data: profile } = await (getSupabaseAdmin() as any)
     .from('profiles')
     .select('id, biz_name, phone, city, address, whatsapp')
     .eq('slug', slug)
@@ -296,7 +296,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   if (!profile) return { notFound: true }
 
-  const { data: medicines } = await (supabaseAdmin as any)
+  const { data: medicines } = await (getSupabaseAdmin() as any)
     .from('medicines')
     .select('id, code, name, company, tp, disc, net, bonus, stock')
     .eq('dist_id', profile.id)

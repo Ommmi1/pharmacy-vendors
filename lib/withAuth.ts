@@ -42,8 +42,8 @@ export function withAuth(options: Options = {}): GetServerSideProps {
     }
 
     // Fetch profile server-side for SSR initial render
-    const { supabaseAdmin } = await import('./supabase/server')
-    const db = supabaseAdmin as any
+    const { getSupabaseAdmin } = await import('./supabase/server')
+    const db = getSupabaseAdmin() as any
     const { data: profile } = await db
       .from('profiles')
       .select('*')

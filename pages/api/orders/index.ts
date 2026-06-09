@@ -1,10 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { supabaseAdmin } from '@/lib/supabase/server'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabaseAdmin as any
+import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { getAuthUser, handleError } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const db = getSupabaseAdmin() as any
   // GET — requires auth (distributor reading their orders)
   if (req.method === 'GET') {
     const user = await getAuthUser(req, res)

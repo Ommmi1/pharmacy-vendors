@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { supabaseAdmin } from './supabase/server'
+import { getSupabaseAdmin } from './supabase/server'
 import type { Profile } from './supabase/types'
 
 /**
@@ -30,7 +30,8 @@ export async function getAuthUser(req: NextApiRequest, res: NextApiResponse) {
  * Uses the admin client so we can read profiles for any user (e.g. portal lookup).
  */
 export async function getProfile(userId: string): Promise<Profile | null> {
-  const { data } = await supabaseAdmin
+  const db = getSupabaseAdmin() as any
+  const { data } = await db
     .from('profiles')
     .select('*')
     .eq('id', userId)

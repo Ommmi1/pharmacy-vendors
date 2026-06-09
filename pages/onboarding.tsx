@@ -341,8 +341,8 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { redirect: { destination: '/login', permanent: false } }
 
-  const { supabaseAdmin } = await import('@/lib/supabase/server')
-  const db = supabaseAdmin as any
+  const { getSupabaseAdmin } = await import('@/lib/supabase/server')
+  const db = getSupabaseAdmin() as any
   const { data: profile } = await db
     .from('profiles').select('*').eq('id', session.user.id).single() as { data: import('@/lib/supabase/types').Profile | null }
 
