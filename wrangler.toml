@@ -1,9 +1,4 @@
-# Cloudflare Pages configuration
-# Place this file in your project root
-
-[build]
-command = "npm run build"
-destination = ".next"
-
-[build.environment]
-NODE_VERSION = "18"
+name = "mediorderpro"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".next"

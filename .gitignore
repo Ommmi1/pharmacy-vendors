@@ -5,7 +5,7 @@
 seed*
 # testing
 /coverage
-
+.next/cache
 # next.js
 /.next/
 /out/
