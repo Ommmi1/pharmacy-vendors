@@ -4,4 +4,4 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".next"
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://xgcuzrrkwpthiqfcfwwd.supabase.co"
-NEXT_PUBLIC_APP_URL = "https://pharmacy-vendors.pages.dev"
+NEXT_PUBLIC_APP_URL = "https://med.albunyad.cloud"
