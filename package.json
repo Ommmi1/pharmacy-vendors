@@ -2,13 +2,13 @@
   "name": "mediorderpro",
   "version": "1.0.0",
   "private": true,
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "deploy": "opennextjs-cloudflare build && wrangler pages deploy",
-  "start": "next start",
-  "lint": "next lint"
-},
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "deploy": "opennextjs-cloudflare build && wrangler pages deploy",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
     "@supabase/ssr": "^0.4.0",
@@ -28,6 +28,7 @@
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.98.0"
   }
 }
